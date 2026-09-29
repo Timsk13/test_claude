@@ -72,6 +72,50 @@ le fermer, puis y revenir 4 minutes plus tard termine la session de 7 minutes.
 3. Branche ton iPhone, sélectionne le schéma **ScreenLimit** et lance (⌘R).
 4. Au premier lancement, touche **Autoriser** et valide avec Face ID / code.
 
+## Tester l'app sur ton iPhone
+
+### 1. Préparer le Mac et l'iPhone (une seule fois)
+1. Installe **Xcode** depuis l'App Store du Mac, puis ouvre-le une première fois.
+2. Dans Xcode > **Settings** > **Accounts**, ajoute ton identifiant Apple.
+   Ton **Team ID** (10 caractères) s'affiche dans la liste de tes équipes.
+3. Installe XcodeGen dans le Terminal : `brew install xcodegen`
+   (si `brew` n'existe pas, installe d'abord [Homebrew](https://brew.sh)).
+4. Sur l'iPhone : **Réglages > Confidentialité et sécurité > Mode développeur** → active-le
+   (l'iPhone redémarre). L'option apparaît après avoir branché l'iPhone au Mac avec Xcode ouvert.
+
+### 2. Récupérer et configurer le projet
+```sh
+git clone -b feature/screenlimit-app https://github.com/Timsk13/test_claude.git
+cd test_claude
+```
+Remplace ensuite les identifiants d'exemple (étape 1 de la section « Installation » ci-dessus),
+puis :
+```sh
+xcodegen generate
+open ScreenLimit.xcodeproj
+```
+
+### 3. Lancer l'app
+1. Branche l'iPhone au Mac et déverrouille-le (accepte « Faire confiance à cet ordinateur »).
+2. En haut d'Xcode, choisis le schéma **ScreenLimit** et ton iPhone comme destination.
+3. Appuie sur **▶︎** (ou ⌘R). Si Xcode signale un problème de signature, ouvre chaque cible
+   (ScreenLimit + les 3 extensions) > onglet **Signing & Capabilities** et choisis ton équipe.
+4. Si l'iPhone refuse d'ouvrir l'app : **Réglages > Général > VPN et gestion de l'appareil**
+   → fais confiance à ton profil développeur.
+
+### 4. Scénario de test (≈ 20 minutes)
+1. Ouvre ScreenLimit, touche **Autoriser** et valide avec Face ID / code.
+2. Touche **+**, nomme la limite « Test », choisis **Safari** (ou une autre app),
+   puis règle : **1 min** par session, **2 sessions**, **15 min** de pause. Enregistre.
+3. Utilise Safari un peu plus d'1 minute → l'écran **« Temps écoulé »** doit apparaître.
+   Touche **OK** : Safari se ferme.
+4. Retourne dans ScreenLimit : la limite affiche 🟠 **« En pause jusqu'à … »**.
+5. Après 15 minutes, Safari doit se rouvrir normalement (🟢 « Session 2/2 disponible »).
+6. Utilise Safari encore 1 minute → blocage, et ScreenLimit affiche 🔴 **« Bloqué jusqu'à minuit »**.
+7. Désactive la limite avec l'interrupteur → Safari est débloqué immédiatement.
+
+Si une étape ne se passe pas comme prévu, note le numéro de l'étape et ce qui s'affiche.
+
 ## Limites connues
 
 - iOS limite à **20 activités surveillées** simultanément. Chaque limite en utilise 2
