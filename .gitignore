@@ -1,0 +1,11 @@
+# Généré par XcodeGen
+*.xcodeproj
+ScreenLimit/**/Info.plist
+ScreenLimit/**/*.entitlements
+
+# Xcode
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+.DS_Store

@@ -1,0 +1,103 @@
+name: ScreenLimit
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.4"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # Remplace par ton Team ID Apple Developer (Xcode > Settings > Accounts)
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  ScreenLimit:
+    type: application
+    platform: iOS
+    sources:
+      - ScreenLimit/App
+      - ScreenLimit/Shared
+    info:
+      path: ScreenLimit/App/Info.plist
+      properties:
+        CFBundleDisplayName: ScreenLimit
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    entitlements:
+      path: ScreenLimit/App/ScreenLimit.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [group.com.example.screenlimit]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.screenlimit
+    dependencies:
+      - target: MonitorExtension
+      - target: ShieldConfigurationExtension
+      - target: ShieldActionExtension
+
+  MonitorExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ScreenLimit/MonitorExtension
+      - ScreenLimit/Shared
+    info:
+      path: ScreenLimit/MonitorExtension/Info.plist
+      properties:
+        CFBundleDisplayName: ScreenLimit Monitor
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.deviceactivity.monitor-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).LimitMonitor
+    entitlements:
+      path: ScreenLimit/MonitorExtension/MonitorExtension.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [group.com.example.screenlimit]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.screenlimit.monitor
+
+  ShieldConfigurationExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ScreenLimit/ShieldConfigurationExtension
+    info:
+      path: ScreenLimit/ShieldConfigurationExtension/Info.plist
+      properties:
+        CFBundleDisplayName: ScreenLimit Shield
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ManagedSettingsUI.shield-configuration-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShieldConfigurationProvider
+    entitlements:
+      path: ScreenLimit/ShieldConfigurationExtension/ShieldConfigurationExtension.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.screenlimit.shieldconfiguration
+
+  ShieldActionExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ScreenLimit/ShieldActionExtension
+    info:
+      path: ScreenLimit/ShieldActionExtension/Info.plist
+      properties:
+        CFBundleDisplayName: ScreenLimit Shield Action
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ManagedSettings.shield-action-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShieldActionHandler
+    entitlements:
+      path: ScreenLimit/ShieldActionExtension/ShieldActionExtension.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.screenlimit.shieldaction
