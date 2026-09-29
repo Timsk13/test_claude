@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: LimitsModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var editedLimit: AppLimit?
 
     var body: some View {
@@ -24,11 +25,14 @@ struct ContentView: View {
             .toolbar {
                 if model.authorizationStatus == .approved {
                     Button {
-                        editedLimit = AppLimit(name: "", minutes: 30)
+                        editedLimit = AppLimit(name: "")
                     } label: {
                         Label("Ajouter", systemImage: "plus")
                     }
                 }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { model.refreshStates() }
             }
             .sheet(item: $editedLimit) { limit in
                 LimitEditorView(limit: limit)
@@ -67,6 +71,7 @@ struct ContentView: View {
             }
             .onDelete(perform: model.delete)
         }
+        .refreshable { model.refreshStates() }
     }
 }
 
@@ -79,9 +84,12 @@ private struct LimitRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(limit.name.isEmpty ? "Sans nom" : limit.name)
                     .font(.headline)
-                Text("\(formatted(minutes: limit.minutes)) par jour")
+                Text(rule)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if limit.isEnabled {
+                    StatusBadge(limit: limit, state: model.state(for: limit))
+                }
                 SelectionIcons(selection: limit.selection)
             }
             Spacer()
@@ -90,6 +98,39 @@ private struct LimitRow: View {
                 set: { model.setEnabled($0, for: limit) }
             ))
             .labelsHidden()
+        }
+    }
+
+    private var rule: String {
+        let session = formatted(minutes: limit.sessionMinutes)
+        guard limit.sessionCount > 1 else { return "\(session) par jour" }
+        return "\(limit.sessionCount) × \(session) · pause \(formatted(minutes: limit.cooldownMinutes))"
+    }
+}
+
+/// Session en cours, pause ou blocage jusqu'à minuit.
+private struct StatusBadge: View {
+    let limit: AppLimit
+    let state: LimitState
+
+    var body: some View {
+        // Se met à jour chaque minute pour faire disparaître une pause terminée.
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            Group {
+                if state.isExhausted(for: limit) {
+                    Label("Bloqué jusqu'à minuit", systemImage: "lock.fill")
+                        .foregroundStyle(.red)
+                } else if let end = state.cooldownEndsAt, end > context.date {
+                    Label("En pause jusqu'à \(end.formatted(date: .omitted, time: .shortened))",
+                          systemImage: "pause.circle.fill")
+                        .foregroundStyle(.orange)
+                } else {
+                    Label("Session \(state.sessionsUsed + 1)/\(limit.sessionCount) disponible",
+                          systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+            }
+            .font(.caption.weight(.medium))
         }
     }
 }

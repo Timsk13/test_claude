@@ -30,13 +30,21 @@ struct LimitEditorView: View {
                 }
 
                 Section {
-                    Stepper(value: $limit.minutes, in: 5...720, step: 5) {
-                        Text(formatted(minutes: limit.minutes)).monospacedDigit()
+                    Stepper(value: $limit.sessionMinutes, in: 1...180) {
+                        LabeledContent("Durée d'une session", value: formatted(minutes: limit.sessionMinutes))
+                    }
+                    Stepper(value: $limit.sessionCount, in: 1...20) {
+                        LabeledContent("Sessions par jour", value: "\(limit.sessionCount)")
+                    }
+                    if limit.sessionCount > 1 {
+                        Stepper(value: $limit.cooldownMinutes, in: AppLimit.minimumCooldown...240, step: 5) {
+                            LabeledContent("Pause entre 2 sessions", value: formatted(minutes: limit.cooldownMinutes))
+                        }
                     }
                 } header: {
-                    Text("Temps autorisé par jour")
+                    Text("Sessions")
                 } footer: {
-                    Text("Une fois ce temps écoulé, les apps sont bloquées jusqu'à minuit.")
+                    Text(explanation)
                 }
             }
             .navigationTitle(limit.name.isEmpty ? "Nouvelle limite" : limit.name)
@@ -55,6 +63,18 @@ struct LimitEditorView: View {
                 }
             }
         }
+    }
+
+    private var explanation: String {
+        let session = formatted(minutes: limit.sessionMinutes)
+        guard limit.sessionCount > 1 else {
+            return "Après \(session) d'utilisation, les apps sont bloquées jusqu'à minuit."
+        }
+        return """
+        Après chaque session de \(session), les apps sont bloquées pendant \(formatted(minutes: limit.cooldownMinutes)). \
+        Après la \(limit.sessionCount)e session (\(formatted(minutes: limit.dailyMinutes)) au total), \
+        elles restent bloquées jusqu'à minuit.
+        """
     }
 
     private var summary: String {

@@ -5,10 +5,15 @@ import Foundation
 @MainActor
 final class LimitsModel: ObservableObject {
     @Published private(set) var limits: [AppLimit] = LimitStorage.load()
+    @Published private(set) var states: [UUID: LimitState] = [:]
     @Published private(set) var authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     @Published var errorMessage: String?
 
     private let center = DeviceActivityCenter()
+
+    init() {
+        refreshStates()
+    }
 
     // MARK: - Autorisation Temps d'écran
 
@@ -21,6 +26,16 @@ final class LimitsModel: ObservableObject {
         authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     }
 
+    // MARK: - État du jour (écrit par l'extension)
+
+    func refreshStates() {
+        states = Dictionary(uniqueKeysWithValues: limits.map { ($0.id, LimitStorage.state(for: $0.id)) })
+    }
+
+    func state(for limit: AppLimit) -> LimitState {
+        states[limit.id] ?? LimitStorage.state(for: limit.id)
+    }
+
     // MARK: - CRUD
 
     func save(_ limit: AppLimit) {
@@ -31,6 +46,7 @@ final class LimitsModel: ObservableObject {
         }
         persist()
         schedule(limit)
+        refreshStates()
     }
 
     func setEnabled(_ enabled: Bool, for limit: AppLimit) {
@@ -41,10 +57,11 @@ final class LimitsModel: ObservableObject {
 
     func delete(at offsets: IndexSet) {
         for index in offsets {
-            stop(limits[index])
+            LimitEngine.stop(limits[index], center: center)
         }
         limits.remove(atOffsets: offsets)
         persist()
+        refreshStates()
     }
 
     private func persist() {
@@ -53,35 +70,17 @@ final class LimitsModel: ObservableObject {
 
     // MARK: - Surveillance
 
-    /// Surveille l'usage cumulé de la journée (00:00 → 23:59, chaque jour).
-    /// Quand le seuil est atteint, l'extension `LimitMonitor` pose le blocage.
     private func schedule(_ limit: AppLimit) {
-        stop(limit)
-        guard limit.isEnabled, !limit.isSelectionEmpty, limit.minutes > 0 else { return }
-
-        let schedule = DeviceActivitySchedule(
-            intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: DateComponents(hour: 23, minute: 59),
-            repeats: true
-        )
-        let event = DeviceActivityEvent(
-            applications: limit.selection.applicationTokens,
-            categories: limit.selection.categoryTokens,
-            webDomains: limit.selection.webDomainTokens,
-            threshold: DateComponents(minute: limit.minutes),
-            // Compte aussi le temps déjà passé aujourd'hui avant la création de la limite.
-            includesPastActivity: true
-        )
-
+        guard limit.isEnabled, !limit.isSelectionEmpty, limit.sessionMinutes > 0, limit.sessionCount > 0 else {
+            LimitEngine.stop(limit, center: center)
+            return
+        }
         do {
-            try center.startMonitoring(limit.activityName, during: schedule, events: [limit.eventName: event])
+            try LimitEngine.startDailyMonitoring(limit, center: center)
+            // Une modification ne lève pas une pause ou un blocage en cours.
+            LimitEngine.reconcile(limit)
         } catch {
             errorMessage = "Impossible de démarrer la surveillance : \(error.localizedDescription)"
         }
-    }
-
-    private func stop(_ limit: AppLimit) {
-        center.stopMonitoring([limit.activityName])
-        LimitShield.unblock(limit)
     }
 }
